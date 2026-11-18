@@ -226,7 +226,7 @@ class ProviderDef {
   });
 
   final String id;
-  final String kind; // moviebox | stremio | json
+  final String kind; // moviebox | storytv | freereels | jiotvplus | stremio | json
   final String name;
   final bool enabled;
   final bool builtin;
@@ -243,6 +243,9 @@ class ProviderDef {
   factory ProviderDef.freeReels() => const ProviderDef(
       id: 'freereels', kind: 'freereels', name: 'Free Reels', builtin: true);
 
+  factory ProviderDef.jioTvPlus() => const ProviderDef(
+      id: 'jiotvplus', kind: 'jiotvplus', name: 'JioTV+', builtin: true);
+
   ProviderDef copyWith({bool? enabled}) => ProviderDef(
         id: id,
         kind: kind,
@@ -255,7 +258,7 @@ class ProviderDef {
       );
 
   String get kindLabel => switch (kind) {
-        'moviebox' || 'storytv' || 'freereels' => 'Built-in',
+        'moviebox' || 'storytv' || 'freereels' || 'jiotvplus' => 'Built-in',
         'stremio' => 'Stremio addon',
         'json' => 'JSON catalog',
         _ => kind,
