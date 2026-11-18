@@ -103,7 +103,7 @@ class _ProviderSectionState extends State<_ProviderSection> {
                 child: Text('${p.name} has no home catalogs. Try Search.'),
               );
             }
-            return (p.kind == 'storytv' || p.kind == 'freereels')
+            return (p.kind == 'storytv' || p.kind == 'freereels' || p.kind == 'jiotvplus')
                 ? _StoryTvGrid(items: shelves.expand((s) => s.items).toList(), provider: p, scrollController: widget.scrollController)
                 : Column(children: [for (final s in shelves) ShelfRow(shelf: s)]);
           },
@@ -252,7 +252,9 @@ class _StoryTvGridState extends State<_StoryTvGrid> {
     widget.scrollController.addListener(_onScroll);
     _hasMore = widget.provider.kind == 'storytv'
         ? StoryTvAdapter.homeHasMore(widget.provider.id)
-        : FreeReelsAdapter.hasMoreFor(widget.provider.id);
+        : widget.provider.kind == 'freereels'
+            ? FreeReelsAdapter.hasMoreFor(widget.provider.id)
+            : false;
     WidgetsBinding.instance.addPostFrameCallback((_) => _onScroll());
   }
 
