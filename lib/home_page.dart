@@ -103,7 +103,9 @@ class _ProviderSectionState extends State<_ProviderSection> {
                 child: Text('${p.name} has no home catalogs. Try Search.'),
               );
             }
-            return (p.kind == 'storytv' || p.kind == 'freereels' || p.kind == 'jiotvplus')
+            return p.kind == 'jiotvplus'
+                ? _JioTvPlusGrid
+                : (p.kind == 'storytv' || p.kind == 'freereels')
                 ? _StoryTvGrid(items: shelves.expand((s) => s.items).toList(), provider: p, scrollController: widget.scrollController)
                 : Column(children: [for (final s in shelves) ShelfRow(shelf: s)]);
           },
@@ -221,6 +223,71 @@ Future<void> resumeProgress(BuildContext context, Progress pr) async {
   } catch (e) {
     messenger.showSnackBar(SnackBar(content: Text(e.toString())));
   }
+}
+
+class _JioTvPlusGrid extends StatelessWidget {
+  const _JioTvPlusGrid({
+    required this.items,
+    required this.provider,
+    required this.scrollController,
+  });
+
+  final List<Item> items;
+  final ProviderDef provider;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+    child: GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      cacheExtent: 900,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 150,
+        childAspectRatio: 1,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+      ),
+      itemBuilder: (context, i) {
+        final item = items[i];
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => openDetail(context, item),
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: item.poster != null
+                        ? Image.network(
+                            item.poster!,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.live_tv_outlined, size: 42),
+                          )
+                        : const Icon(Icons.live_tv_outlined, size: 42),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class _StoryTvGrid extends StatefulWidget {
