@@ -97,6 +97,7 @@ abstract class Adapter {
 Adapter adapterFor(ProviderDef p) => switch (p.kind) {
       'storytv' => StoryTvAdapter(),
       'freereels' => FreeReelsAdapter(),
+      'jiotvplus' => JioTvPlusAdapter(),
       'moviebox' => MovieBoxAdapter(),
       'stremio' => StremioAdapter(),
       'json' => JsonAdapter(),
@@ -749,6 +750,99 @@ class StoryTvAdapter extends Adapter {
   }
 }
 
+
+/* ---------- JioTV+ live TV provider ---------- */
+class JioTvPlusAdapter extends Adapter {
+  static const _primary = 'https://jiotv.data.cdn.jio.com/apis/v3.1/getMobileChannelList/get/';
+  static const _fallback = 'https://jiotv.data.cdn.jio.com/apis/v3.0/getMobileChannelList/get/';
+  static const _headers = <String, String>{
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Origin': 'https://www.jiotv.com',
+    'Referer': 'https://www.jiotv.com/',
+    'appkey': 'JioTV',
+    'os': 'android',
+    'devicetype': 'phone',
+  };
+  static final http.Client _client = http.Client();
+
+  Uri _uri(String base) => Uri.parse(base).replace(queryParameters: const {
+    'os': 'android', 'devicetype': 'phone', 'usertype': 'tvYR7NSNn7rymo3F',
+  });
+
+  Future<dynamic> _fetch() async {
+    Object? last;
+    for (final base in [_primary, _fallback]) {
+      try {
+        final r = await _client.get(_uri(base), headers: _headers)
+            .timeout(const Duration(seconds: 20));
+        if (r.statusCode != 200) {
+          last = ProviderError('JioTV+ channel API HTTP ${r.statusCode}');
+          continue;
+        }
+        final j = jsonDecode(utf8.decode(r.bodyBytes));
+        if (j is Map && j['code'] != null &&
+            !['0', '200'].contains(j['code'].toString())) {
+          last = ProviderError('JioTV+ channel API error: ${(j['message'] ?? j['code']).toString()}');
+          continue;
+        }
+        return j;
+      } catch (e) { last = e; }
+    }
+    throw ProviderError('JioTV+ channels unavailable${last == null ? '' : ': $last'}');
+  }
+
+  List<Map> _channels(dynamic json) {
+    dynamic raw;
+    if (json is Map) {
+      raw = json['result'] ?? json['channels'] ?? json['data'];
+      if (raw is Map) raw = raw['result'] ?? raw['channels'] ?? raw['list'] ?? raw['data'];
+    } else {
+      raw = json;
+    }
+    return raw is List ? raw.whereType<Map>().toList() : const [];
+  }
+
+  Item _item(ProviderDef p, Map c, int index) {
+    final id = (c['channel_id'] ?? c['channelId'] ?? c['id'] ?? '').toString();
+    final name = (c['channel_name'] ?? c['channelName'] ?? c['name'] ?? 'Channel ${index + 1}')
+        .toString().trim();
+    final logo = (c['logoUrl'] ?? c['logoURL'] ?? c['logo'] ?? c['channel_logo'])?.toString() ?? '';
+    return Item(
+      pid: p.id, id: id.isEmpty ? 'jiotv_$index' : id, type: 'live',
+      title: name.isEmpty ? 'Untitled Channel' : name,
+      poster: isHttp(logo) ? logo : null, bg: isHttp(logo) ? logo : null,
+      subjectType: 9,
+    );
+  }
+
+  @override
+  Future<List<Shelf>> home(ProviderDef p) async {
+    final channels = _channels(await _fetch());
+    final items = <Item>[];
+    final seen = <String>{};
+    for (var i = 0; i < channels.length; i++) {
+      final item = _item(p, channels[i], i);
+      if (item.id.isNotEmpty && seen.add(item.id)) items.add(item);
+    }
+    if (items.isEmpty) throw ProviderError('JioTV+ returned no live channels.');
+    return [Shelf('Live TV', items)];
+  }
+
+  @override
+  Future<List<Item>> search(ProviderDef p, String q) async {
+    final all = (await home(p)).expand((s) => s.items);
+    final n = q.trim().toLowerCase();
+    return n.isEmpty ? all.toList() : all.where((x) => x.title.toLowerCase().contains(n)).toList();
+  }
+
+  @override Future<Item> detail(ProviderDef p, Item item) async => item;
+
+  @override
+  Future<List<Source>> sources(ProviderDef p, Item item, Episode? ep) async {
+    throw ProviderError('JioTV+ playback resolver will be added next.');
+  }
+}
 
 
 /* ---------- Free Reels vertical drama provider ---------- */
